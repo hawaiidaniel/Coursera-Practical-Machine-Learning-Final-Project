@@ -1,0 +1,135 @@
+---
+title: "Coursera Practical Machine Learning Final Project"
+author: "Daniel"
+date: "Sunday, February 28, 2016"
+output: html_document
+---
+
+#Background and Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about 
+personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of 
+enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, 
+or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, 
+but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, 
+forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight 
+Lifting Exercise Dataset).
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. 
+You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used 
+cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your 
+prediction model to predict 20 different test cases.
+
+#Datasets Preparation
+
+First of all, we need to install the following packages we use for this project.
+```{r}
+library(caret);
+library(rattle);library(rpart); 
+library(rpart.plot);library(randomForest);library(forecast);library(e1071);
+```
+
+Now we import the datasets from the links:
+
+```{r}
+training=read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",na.strings=c("NA","","#DIV/0!"))
+testing=read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",na.strings=c("NA","","#DIV/0!"))
+```
+
+Since we find that the first 7 columns such as names and windows don't affect the prediction model, we can remove them by the following steps.
+```{r}
+training=training[,8:160]
+testing=testing[,8:160]
+```
+
+Also, we need to remove the columns that has any NA, blank and strange strings values.
+```{r}
+training=training[,colSums(is.na(training))==0]
+testing=testing[,colSums(is.na(testing))==0]
+```
+
+#Data splitting
+In order to get out-of-sample error, we need to separate the data into two parts. Here we split the clean training data into a training 
+set(70%) and a validation set(30%). 
+```{r}
+intrain=createDataPartition(training$classe,p=0.7,list=F)
+traindat=training[intrain,]
+testdat=training[-intrain,]
+```
+
+#Prediction Algorithms
+##Classification Tree
+In default, the k-fold cross-validation setting is k=10. We may use k=5 here for cross-validation step.
+```{r}
+modc=train(classe ~ .,method="rpart",data=traindat,trControl=trainControl(method="cv",number=20))
+fancyRpartPlot(modc$finalModel)
+pred_val=predict(modc,testdat)
+confusionMatrix(testdat$classe,pred_val)
+```
+
+From the result shown above, we know that the accuracy of Classification Tree is about 50%, which means the out-of-sample error is 50%. Hence this method doesn't predict the result very well.
+
+##SVM
+```{r}
+modsvm=svm(classe ~ .,data=traindat,trControl=trainControl(method="cv",number=5))
+pred_val=predict(modsvm,testdat)
+confusionMatrix(testdat$classe,pred_val)
+```
+
+The result from using Support Vector Machine is about 94%, which means the out-of-sample error is about 6%, and this is pretty good one. It's much better than Classification Tree method.
+
+##Random Forest
+```
+modrf=train(classe ~ .,method="rf",data=traindat,trControl=trainControl(method="cv",number=5))
+
+pred_val=predict(modrf,testdat)
+
+confusionMatrix(testdat$classe,pred_val)
+```
+```
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1672    2    0    0    0
+         B    6 1131    2    0    0
+         C    0    9 1014    3    0
+         D    0    1   17  945    1
+         E    0    0    0    4 1078
+
+Overall Statistics
+                                          
+               Accuracy : 0.9924          
+                 95% CI : (0.9898, 0.9944)
+    No Information Rate : 0.2851          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.9903          
+ Mcnemar's Test P-Value : NA           
+```
+As we see, the accuracy of Random Forest is about 99% and the out-of-sample error is less than 1%, which is very good prediction. However, this method took about 20 minutes to predict.
+
+#Prediction on Testing Set
+The Random Forest method produced a very good prediction result. However, it took too much time to predict and 99% accuracy would result in 
+overfitting. Therefore, we choose SVM method to predict the test datasets.
+```{r}
+pred_test=predict(modsvm,testing)
+pred_test
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
